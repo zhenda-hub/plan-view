@@ -1,0 +1,59 @@
+// This is your Prisma schema file
+// Learn more: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Project {
+  id          String   @id @default(uuid())
+  name        String
+  description String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  tasks       Task[]
+}
+
+model Task {
+  id           String       @id @default(uuid())
+  title        String
+  description  String?
+  startDate    DateTime
+  endDate      DateTime
+  level        String       // decade, five_year, three_year, year, quarterly, monthly, weekly
+  color        String?
+  status       String       @default("planned") // planned, in_progress, completed, delayed
+  progress     Int          @default(0)
+  type         String       @default("task") // task, milestone, summary
+  priority     String?      // low, medium, high, critical
+  assignedTo   String?      @default("[]")
+  dependencies String[]     @default([])
+  parentId     String?
+  parent       Task?        @relation("TaskHierarchy", fields: [parentId], references: [id], onDelete: Cascade)
+  children     Task[]       @relation("TaskHierarchy")
+  projectId    String
+  project      Project      @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
+
+  @@index([projectId])
+  @@index([parentId])
+}
+
+model Dependency {
+  id         String   @id @default(uuid())
+  fromTaskId String
+  toTaskId   String
+  type       String   @default("finish_to_start")
+  lag        Int      @default(0)
+  createdAt  DateTime @default(now())
+
+  @@unique([fromTaskId, toTaskId])
+  @@index([fromTaskId])
+  @@index([toTaskId])
+}
