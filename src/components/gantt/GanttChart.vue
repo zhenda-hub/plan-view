@@ -6,6 +6,14 @@
         ➕ 新建任务
       </button>
       <button
+        class="toolbar-btn"
+        :disabled="!selectedTask"
+        @click="selectedTask && handleEditTask(selectedTask)"
+        title="编辑任务"
+      >
+        ✏️ 编辑
+      </button>
+      <button
         class="toolbar-btn danger"
         :disabled="!ganttStore.selectedTaskId"
         @click="handleDeleteTask"
@@ -13,6 +21,22 @@
         🗑️ 删除
       </button>
       <div class="toolbar-divider"></div>
+      <!-- 状态快速切换 -->
+      <template v-if="selectedTask">
+        <span class="toolbar-label">状态:</span>
+        <button
+          v-for="status in statusOptions"
+          :key="status.value"
+          class="toolbar-btn status-btn"
+          :class="{ active: selectedTask.status === status.value }"
+          :style="{ borderColor: status.color, color: selectedTask.status === status.value ? 'white' : status.color }"
+          @click="handleQuickStatusChange(status.value)"
+          :title="status.label"
+        >
+          {{ status.icon }}
+        </button>
+        <div class="toolbar-divider"></div>
+      </template>
       <button
         class="toolbar-btn"
         :class="{ active: ganttStore.config.showDependencies }"
@@ -70,6 +94,9 @@
             :style="{ paddingLeft: (task.rowIndex || 0) * 20 + 12 + 'px' }"
             @click="handleSelectTask(task.id)"
           >
+            <span class="task-status-icon" :style="{ color: getStatusColor(task.status) }">
+              {{ getStatusIcon(task.status) }}
+            </span>
             <span class="task-name">{{ task.title }}</span>
             <span v-if="task.type === 'milestone'" class="milestone-badge">◆</span>
           </div>
@@ -91,7 +118,7 @@
         </div>
 
         <!-- 任务条区域 -->
-        <div class="timeline-body">
+        <div class="timeline-body" @mousemove="handleTimelineMouseMove" @mouseup="handleDragEnd">
           <!-- 今天标记线 -->
           <div
             v-if="todayMarkerPosition >= 0"
@@ -138,20 +165,49 @@
               class="task-bar"
               :class="{
                 'is-milestone': task.type === 'milestone',
-                'is-selected': ganttStore.selectedTaskId === task.id
+                'is-selected': ganttStore.selectedTaskId === task.id,
+                'is-dragging': draggingTask === task.id
               }"
               :style="getTaskBarStyle(task)"
               @click="handleSelectTask(task.id)"
               @dblclick="handleEditTask(task)"
+              @mousedown.stop="handleDragStart($event, task)"
             >
+              <!-- 拖拽手柄 -->
+              <div
+                v-if="task.type !== 'milestone'"
+                class="drag-handle drag-handle-left"
+                @mousedown.stop="handleResizeStart($event, task, 'left')"
+              ></div>
+              <div
+                v-if="task.type !== 'milestone'"
+                class="drag-handle drag-handle-right"
+                @mousedown.stop="handleResizeStart($event, task, 'right')"
+              ></div>
+              <!-- 进度条 -->
               <div
                 v-if="ganttStore.config.showProgress && task.progress && task.type !== 'milestone'"
                 class="task-progress"
+                :class="{ 'is-dragging': draggingProgress === task.id }"
                 :style="{ width: task.progress + '%' }"
-              />
+                @mousedown.stop="handleProgressDragStart($event, task)"
+              >
+                <div class="progress-handle"></div>
+              </div>
               <span class="task-label">{{ task.title }}</span>
+              <!-- 进度百分比显示 -->
+              <span v-if="ganttStore.config.showProgress && task.type !== 'milestone'" class="task-progress-text">
+                {{ task.progress }}%
+              </span>
             </div>
           </div>
+
+          <!-- 拖拽预览线 -->
+          <div
+            v-if="dragPreview.visible"
+            class="drag-preview-line"
+            :style="{ left: dragPreview.x + 'px' }"
+          ></div>
         </div>
       </div>
     </div>
@@ -160,13 +216,17 @@
     <div v-if="editingTask" class="dialog-overlay" @click="handleCancelEdit">
       <div class="dialog-content" @click.stop>
         <div class="dialog-header">
-          <h3>编辑任务</h3>
+          <h3>{{ isNewTask ? '新建任务' : '编辑任务' }}</h3>
           <button class="close-btn" @click="handleCancelEdit">✕</button>
         </div>
         <form @submit.prevent="handleSaveTask" class="dialog-form">
           <div class="form-group">
             <label>任务名称 *</label>
-            <input v-model="editForm.title" type="text" required />
+            <input v-model="editForm.title" type="text" required placeholder="输入任务名称" />
+          </div>
+          <div class="form-group">
+            <label>描述</label>
+            <textarea v-model="editForm.description" rows="3" placeholder="输入任务描述"></textarea>
           </div>
           <div class="form-row">
             <div class="form-group">
@@ -184,11 +244,32 @@
               <select v-model="editForm.type">
                 <option value="task">普通任务</option>
                 <option value="milestone">里程碑</option>
+                <option value="summary">摘要任务</option>
               </select>
             </div>
+            <div class="form-group">
+              <label>状态</label>
+              <select v-model="editForm.status">
+                <option value="planned">📋 未开始</option>
+                <option value="in_progress">🔄 进行中</option>
+                <option value="completed">✅ 已完成</option>
+                <option value="delayed">⚠️ 已延期</option>
+              </select>
+            </div>
+          </div>
+          <div class="form-row">
             <div class="form-group" v-if="editForm.type === 'task'">
               <label>进度 (%)</label>
               <input v-model.number="editForm.progress" type="number" min="0" max="100" />
+            </div>
+            <div class="form-group">
+              <label>优先级</label>
+              <select v-model="editForm.priority">
+                <option value="low">🟢 低</option>
+                <option value="medium">🟡 中</option>
+                <option value="high">🟠 高</option>
+                <option value="critical">🔴 紧急</option>
+              </select>
             </div>
           </div>
           <div class="form-group">
@@ -234,14 +315,56 @@ const currentProjectId = ref<string>()
 const rowHeight = 50
 const presetColors = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899']
 
+// 状态选项
+const statusOptions = [
+  { value: 'planned', label: '未开始', icon: '📋', color: '#6b7280' },
+  { value: 'in_progress', label: '进行中', icon: '🔄', color: '#3b82f6' },
+  { value: 'completed', label: '已完成', icon: '✅', color: '#10b981' },
+  { value: 'delayed', label: '已延期', icon: '⚠️', color: '#ef4444' }
+]
+
+// 拖拽状态
+const draggingTask = ref<string | null>(null)
+const draggingProgress = ref<string | null>(null)
+const dragMode = ref<'move' | 'resize-left' | 'resize-right' | null>(null)
+const dragStartPos = ref({ x: 0, y: 0 })
+const dragStartDate = ref<Date | null>(null)
+const dragEndDate = ref<Date | null>(null)
+const dragPreview = ref({ visible: false, x: 0 })
+
 const editForm = ref({
   title: '',
+  description: '',
   startDate: '',
   endDate: '',
   type: 'task',
+  status: 'planned',
   progress: 0,
+  priority: 'medium',
   color: '#3b82f6'
 })
+
+// 获取选中的任务
+const selectedTask = computed(() => {
+  return tasks.value.find(t => t.id === ganttStore.selectedTaskId) || null
+})
+
+// 是否是新任务
+const isNewTask = computed(() => {
+  return editingTask.value?.id.startsWith('new-')
+})
+
+// 获取状态图标
+function getStatusIcon(status: string): string {
+  const option = statusOptions.find(s => s.value === status)
+  return option?.icon || '📋'
+}
+
+// 获取状态颜色
+function getStatusColor(status: string): string {
+  const option = statusOptions.find(s => s.value === status)
+  return option?.color || '#6b7280'
+}
 
 // 获取或创建默认项目
 async function getOrCreateProject() {
@@ -250,8 +373,6 @@ async function getOrCreateProject() {
     if (projects.length > 0) {
       return projects[0].id
     }
-
-    // 如果没有项目，创建一个默认项目
     const project = await projectApi.create({
       name: '默认项目',
       description: '系统自动创建的项目'
@@ -332,10 +453,10 @@ const todayMarkerPosition = computed(() => {
 
 // 任务列表（扁平化）
 const tasks = computed(() => {
-  return planningStore.items.map((item) => ({
+  return planningStore.items.map((item, index) => ({
     ...item,
     level: item.level,
-    rowIndex: 0 // 简化处理，实际需要计算层级
+    rowIndex: index
   }))
 })
 
@@ -395,15 +516,27 @@ function handleSelectTask(taskId: string) {
   ganttStore.selectTask(taskId)
 }
 
+// 快速状态切换
+async function handleQuickStatusChange(status: string) {
+  if (!selectedTask.value) return
+
+  try {
+    await taskApi.update(selectedTask.value.id, { status })
+    await planningStore.loadFromApi()
+  } catch (error) {
+    console.error('更新状态失败:', error)
+    alert('更新状态失败')
+  }
+}
+
 // 添加任务
 async function handleAddTask() {
-  // 确保有项目 ID
   if (!currentProjectId.value) {
     currentProjectId.value = await getOrCreateProject()
   }
 
   const newTask: PlanningItem = {
-    id: 'new-' + crypto.randomUUID(), // 使用 'new-' 前缀标识新任务
+    id: 'new-' + crypto.randomUUID(),
     title: '新任务',
     startDate: new Date(),
     endDate: dayjs().add(7, 'day').toDate(),
@@ -417,10 +550,13 @@ async function handleAddTask() {
   editingTask.value = newTask
   editForm.value = {
     title: newTask.title,
+    description: '',
     startDate: dayjs(newTask.startDate).format('YYYY-MM-DD'),
     endDate: dayjs(newTask.endDate).format('YYYY-MM-DD'),
     type: 'task',
+    status: 'planned',
     progress: 0,
+    priority: 'medium',
     color: '#3b82f6'
   }
 }
@@ -445,10 +581,13 @@ function handleEditTask(task: PlanningItem) {
   editingTask.value = task
   editForm.value = {
     title: task.title,
+    description: task.description || '',
     startDate: dayjs(task.startDate).format('YYYY-MM-DD'),
     endDate: dayjs(task.endDate).format('YYYY-MM-DD'),
     type: task.type || 'task',
+    status: task.status || 'planned',
     progress: task.progress || 0,
+    priority: task.priority || 'medium',
     color: task.color || '#3b82f6'
   }
 }
@@ -458,7 +597,6 @@ async function handleSaveTask() {
   if (!editingTask.value) return
 
   try {
-    // 确保有项目 ID
     if (!currentProjectId.value) {
       currentProjectId.value = await getOrCreateProject()
     }
@@ -467,26 +605,23 @@ async function handleSaveTask() {
 
     const taskData = {
       title: editForm.value.title,
-      description: '',
+      description: editForm.value.description,
       startDate: new Date(editForm.value.startDate),
       endDate: new Date(editForm.value.endDate),
       level: 'year',
-      status: 'planned',
+      status: editForm.value.status,
       progress: editForm.value.progress || 0,
       type: editForm.value.type,
+      priority: editForm.value.priority,
       color: editForm.value.color,
       dependencies: editingTask.value.dependencies || [],
       projectId: currentProjectId.value
     }
 
-    console.log('保存任务:', { isNewTask, editingTaskId: editingTask.value.id, taskData })
-
     if (isNewTask) {
-      const result = await taskApi.create(taskData as any)
-      console.log('创建成功:', result)
+      await taskApi.create(taskData as any)
     } else {
-      const result = await taskApi.update(editingTask.value.id, taskData)
-      console.log('更新成功:', result)
+      await taskApi.update(editingTask.value.id, taskData)
     }
 
     await planningStore.loadFromApi()
@@ -502,10 +637,162 @@ function handleCancelEdit() {
   editingTask.value = null
 }
 
+// ===== 拖拽功能 =====
+
+// 开始拖拽任务
+function handleDragStart(event: MouseEvent, task: PlanningItem) {
+  if (task.type === 'milestone') return
+  draggingTask.value = task.id
+  dragMode.value = 'move'
+  dragStartPos.value = { x: event.clientX, y: event.clientY }
+  dragStartDate.value = new Date(task.startDate)
+  dragEndDate.value = new Date(task.endDate)
+
+  document.addEventListener('mousemove', handleDragging)
+  document.addEventListener('mouseup', handleDragEnd)
+}
+
+// 开始调整大小
+function handleResizeStart(event: MouseEvent, task: PlanningItem, side: 'left' | 'right') {
+  draggingTask.value = task.id
+  dragMode.value = side === 'left' ? 'resize-left' : 'resize-right'
+  dragStartPos.value = { x: event.clientX, y: event.clientY }
+  dragStartDate.value = new Date(task.startDate)
+  dragEndDate.value = new Date(task.endDate)
+
+  document.addEventListener('mousemove', handleDragging)
+  document.addEventListener('mouseup', handleDragEnd)
+}
+
+// 开始拖拽进度
+function handleProgressDragStart(event: MouseEvent, task: PlanningItem) {
+  event.stopPropagation()
+  draggingProgress.value = task.id
+  dragStartPos.value = { x: event.clientX, y: event.clientY }
+
+  document.addEventListener('mousemove', handleProgressDragging)
+  document.addEventListener('mouseup', handleProgressDragEnd)
+}
+
+// 拖拽中
+function handleDragging(event: MouseEvent) {
+  if (!draggingTask.value || !timelineRef.value) return
+
+  const deltaX = event.clientX - dragStartPos.value.x
+  const taskElement = event.target as HTMLElement
+  const rect = taskElement.getBoundingClientRect()
+  const timelineRect = timelineRef.value.getBoundingClientRect()
+  const pixelsX = rect.left - timelineRect.left + deltaX
+
+  dragPreview.value = { visible: true, x: pixelsX }
+}
+
+// 拖拽进度中
+async function handleProgressDragging(event: MouseEvent) {
+  if (!draggingProgress.value || !timelineRef.value) return
+
+  const task = tasks.value.find(t => t.id === draggingProgress.value)
+  if (!task) return
+
+  const taskElement = event.target as HTMLElement
+  const rect = taskElement.getBoundingClientRect()
+  const newProgress = Math.max(0, Math.min(100, ((event.clientX - rect.left) / rect.width) * 100))
+
+  try {
+    await taskApi.update(task.id, { progress: Math.round(newProgress) })
+    await planningStore.loadFromApi()
+  } catch (error) {
+    console.error('更新进度失败:', error)
+  }
+}
+
+// 结束拖拽
+async function handleDragEnd() {
+  if (!draggingTask.value || !dragMode.value) return
+
+  const task = tasks.value.find(t => t.id === draggingTask.value)
+  if (!task) {
+    resetDragState()
+    return
+  }
+
+  const timelineWidth = timelineRef.value?.clientWidth || 1
+  const deltaX = dragPreview.value.visible
+    ? dragPreview.value.x - (taskElementLeft(task) || 0)
+    : 0
+
+  const totalDays = dayjs(timelineEndDate.value).diff(dayjs(timelineStartDate.value), 'day')
+  const daysDelta = Math.round((deltaX / timelineWidth) * totalDays)
+
+  let newStartDate = new Date(dragStartDate.value!)
+  let newEndDate = new Date(dragEndDate.value!)
+
+  if (dragMode.value === 'move') {
+    newStartDate = dayjs(dragStartDate.value).add(daysDelta, 'day').toDate()
+    newEndDate = dayjs(dragEndDate.value).add(daysDelta, 'day').toDate()
+  } else if (dragMode.value === 'resize-left') {
+    newStartDate = dayjs(dragStartDate.value).add(daysDelta, 'day').toDate()
+    if (newStartDate >= newEndDate) {
+      newStartDate = dayjs(newEndDate).subtract(1, 'day').toDate()
+    }
+  } else if (dragMode.value === 'resize-right') {
+    newEndDate = dayjs(dragEndDate.value).add(daysDelta, 'day').toDate()
+    if (newEndDate <= newStartDate) {
+      newEndDate = dayjs(newStartDate).add(1, 'day').toDate()
+    }
+  }
+
+  try {
+    await taskApi.update(task.id, {
+      startDate: newStartDate,
+      endDate: newEndDate
+    })
+    await planningStore.loadFromApi()
+  } catch (error) {
+    console.error('更新任务时间失败:', error)
+  }
+
+  resetDragState()
+}
+
+// 结束进度拖拽
+function handleProgressDragEnd() {
+  draggingProgress.value = null
+  document.removeEventListener('mousemove', handleProgressDragging)
+  document.removeEventListener('mouseup', handleProgressDragEnd)
+}
+
+// 获取任务条左边距
+function taskElementLeft(task: PlanningItem): number | null {
+  if (!timelineRef.value) return null
+  const timelineWidth = timelineRef.value.clientWidth
+  const pos = calculateTaskPosition(task, timelineStartDate.value, timelineEndDate.value, timelineWidth)
+  return pos.left
+}
+
+// 处理时间轴鼠标移动
+function handleTimelineMouseMove(event: MouseEvent) {
+  if (!draggingTask.value || !timelineRef.value) return
+
+  const rect = timelineRef.value.getBoundingClientRect()
+  const x = event.clientX - rect.left
+  dragPreview.value = { visible: true, x }
+}
+
+// 重置拖拽状态
+function resetDragState() {
+  draggingTask.value = null
+  draggingProgress.value = null
+  dragMode.value = null
+  dragStartDate.value = null
+  dragEndDate.value = null
+  dragPreview.value = { visible: false, x: 0 }
+  document.removeEventListener('mousemove', handleDragging)
+  document.removeEventListener('mouseup', handleDragEnd)
+}
+
 onMounted(async () => {
-  // 初始化项目 ID
   currentProjectId.value = await getOrCreateProject()
-  // 加载任务数据
   await planningStore.loadFromApi()
 })
 </script>
@@ -548,6 +835,18 @@ onMounted(async () => {
   background: #3b82f6;
   color: white;
   border-color: #3b82f6;
+}
+
+.toolbar-btn.status-btn {
+  min-width: 40px;
+  padding: 0.5rem 0.75rem;
+  border-width: 2px;
+  background: white;
+}
+
+.toolbar-btn.status-btn.active {
+  background: currentColor;
+  border-color: currentColor;
 }
 
 .toolbar-btn.primary {
@@ -623,6 +922,10 @@ onMounted(async () => {
   background: #dbeafe;
 }
 
+.task-status-icon {
+  font-size: 1rem;
+}
+
 .task-name {
   flex: 1;
   font-size: 0.875rem;
@@ -683,8 +986,9 @@ onMounted(async () => {
   top: 7px;
   height: 36px;
   border-radius: 6px;
-  cursor: pointer;
+  cursor: move;
   transition: box-shadow 0.2s;
+  user-select: none;
 }
 
 .task-bar:hover {
@@ -695,6 +999,11 @@ onMounted(async () => {
   box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.5);
 }
 
+.task-bar.is-dragging {
+  opacity: 0.8;
+  cursor: grabbing;
+}
+
 .task-bar.is-milestone {
   width: 24px !important;
   height: 24px;
@@ -702,8 +1011,39 @@ onMounted(async () => {
   border-radius: 50%;
   background: #fbbf24 !important;
   border: 3px solid #f59e0b;
+  cursor: pointer;
 }
 
+/* 拖拽手柄 */
+.drag-handle {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 8px;
+  cursor: col-resize;
+  opacity: 0;
+  transition: opacity 0.2s;
+}
+
+.task-bar:hover .drag-handle {
+  opacity: 1;
+}
+
+.drag-handle-left {
+  left: 0;
+  border-radius: 6px 0 0 6px;
+}
+
+.drag-handle-right {
+  right: 0;
+  border-radius: 0 6px 6px 0;
+}
+
+.drag-handle:hover {
+  background: rgba(255, 255, 255, 0.3);
+}
+
+/* 进度条 */
 .task-progress {
   position: absolute;
   left: 0;
@@ -711,7 +1051,23 @@ onMounted(async () => {
   height: 100%;
   background: rgba(0, 0, 0, 0.2);
   border-radius: 6px 0 0 6px;
-  pointer-events: none;
+  cursor: col-resize;
+  transition: background 0.2s;
+}
+
+.task-progress.is-dragging {
+  background: rgba(0, 0, 0, 0.3);
+}
+
+.progress-handle {
+  position: absolute;
+  right: -3px;
+  top: 0;
+  bottom: 0;
+  width: 6px;
+  background: rgba(255, 255, 255, 0.5);
+  border-radius: 0 6px 6px 0;
+  cursor: col-resize;
 }
 
 .task-label {
@@ -725,7 +1081,30 @@ onMounted(async () => {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  max-width: calc(100% - 16px);
+  max-width: calc(100% - 60px);
+  pointer-events: none;
+}
+
+.task-progress-text {
+  position: absolute;
+  right: 8px;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: white;
+  pointer-events: none;
+}
+
+/* 拖拽预览线 */
+.drag-preview-line {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  background: #3b82f6;
+  z-index: 100;
+  pointer-events: none;
 }
 
 /* 今天标记线 */
@@ -793,7 +1172,7 @@ onMounted(async () => {
   background: white;
   border-radius: 12px;
   width: 90%;
-  max-width: 500px;
+  max-width: 550px;
   max-height: 90vh;
   overflow-y: auto;
   box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
@@ -838,12 +1217,18 @@ onMounted(async () => {
 }
 
 .form-group input,
-.form-group select {
+.form-group select,
+.form-group textarea {
   width: 100%;
   padding: 0.625rem;
   border: 1px solid #d1d5db;
   border-radius: 6px;
   font-size: 0.875rem;
+  box-sizing: border-box;
+}
+
+.form-group textarea {
+  resize: vertical;
 }
 
 .form-row {
@@ -863,6 +1248,11 @@ onMounted(async () => {
   border-radius: 50%;
   cursor: pointer;
   border: 2px solid transparent;
+  transition: transform 0.2s;
+}
+
+.color-option:hover {
+  transform: scale(1.1);
 }
 
 .color-option.active {
