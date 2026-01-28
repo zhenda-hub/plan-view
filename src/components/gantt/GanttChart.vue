@@ -92,6 +92,15 @@
 
         <!-- 任务条区域 -->
         <div class="timeline-body">
+          <!-- 今天标记线 -->
+          <div
+            v-if="todayMarkerPosition >= 0"
+            class="today-marker"
+            :style="{ left: todayMarkerPosition + 'px' }"
+          >
+            <div class="today-label">今天</div>
+          </div>
+
           <svg
             v-if="ganttStore.config.showDependencies"
             class="dependencies-layer"
@@ -299,6 +308,26 @@ const cellWidth = computed(() => {
   if (zoomLevel === 'day') return 40
   if (zoomLevel === 'week') return 120
   return 200
+})
+
+// 今天标记线位置
+const todayMarkerPosition = computed(() => {
+  if (!timelineRef.value) return -1
+
+  const today = dayjs().startOf('day')
+  const startDate = dayjs(timelineStartDate.value).startOf('day')
+  const endDate = dayjs(timelineEndDate.value).startOf('day')
+
+  // 如果今天不在时间范围内，返回 -1
+  if (today.isBefore(startDate) || today.isAfter(endDate)) {
+    return -1
+  }
+
+  const timelineWidth = timelineRef.value.clientWidth
+  const totalDays = endDate.diff(startDate, 'day')
+  const daysFromStart = today.diff(startDate, 'day')
+
+  return (daysFromStart / totalDays) * timelineWidth
 })
 
 // 任务列表（扁平化）
@@ -697,6 +726,53 @@ onMounted(async () => {
   overflow: hidden;
   text-overflow: ellipsis;
   max-width: calc(100% - 16px);
+}
+
+/* 今天标记线 */
+.today-marker {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  background: #ef4444;
+  z-index: 10;
+  pointer-events: none;
+}
+
+.today-marker::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -4px;
+  width: 10px;
+  height: 10px;
+  background: #ef4444;
+  border-radius: 50%;
+}
+
+.today-label {
+  position: absolute;
+  top: -24px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: #ef4444;
+  color: white;
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.today-label::after {
+  content: '';
+  position: absolute;
+  bottom: -4px;
+  left: 50%;
+  transform: translateX(-50%);
+  border-left: 4px solid transparent;
+  border-right: 4px solid transparent;
+  border-top: 4px solid #ef4444;
 }
 
 /* 对话框样式 */
