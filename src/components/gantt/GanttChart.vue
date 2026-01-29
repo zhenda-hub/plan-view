@@ -451,13 +451,20 @@ const todayMarkerPosition = computed(() => {
   return (daysFromStart / totalDays) * timelineWidth
 })
 
-// 任务列表（扁平化）
+// 任务列表（扁平化，按结束时间降序排序）
 const tasks = computed(() => {
-  return planningStore.items.map((item, index) => ({
-    ...item,
-    level: item.level,
-    rowIndex: index
-  }))
+  return planningStore.items
+    .map((item, index) => ({
+      ...item,
+      level: item.level,
+      rowIndex: index
+    }))
+    .sort((a, b) => {
+      // 按结束时间降序排序（2034年在上面，2024年在下面）
+      const endDateA = dayjs(a.endDate).valueOf()
+      const endDateB = dayjs(b.endDate).valueOf()
+      return endDateB - endDateA
+    })
 })
 
 // 依赖关系（带路径）
