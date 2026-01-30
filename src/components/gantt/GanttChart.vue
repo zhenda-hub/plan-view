@@ -231,11 +231,13 @@
           <div class="form-row">
             <div class="form-group">
               <label>开始日期 *</label>
-              <input v-model="editForm.startDate" type="date" required />
+              <input v-model="editForm.startDate" type="text" required placeholder="20260101" maxlength="8" pattern="\d{8}" />
+              <small class="input-hint">格式: YYYYMMDD，如 20260101</small>
             </div>
             <div class="form-group">
               <label>结束日期 *</label>
-              <input v-model="editForm.endDate" type="date" required />
+              <input v-model="editForm.endDate" type="text" required placeholder="20261231" maxlength="8" pattern="\d{8}" />
+              <small class="input-hint">格式: YYYYMMDD，如 20261231</small>
             </div>
           </div>
           <div class="form-row">
@@ -558,8 +560,8 @@ async function handleAddTask() {
   editForm.value = {
     title: newTask.title,
     description: '',
-    startDate: dayjs(newTask.startDate).format('YYYY-MM-DD'),
-    endDate: dayjs(newTask.endDate).format('YYYY-MM-DD'),
+    startDate: dayjs(newTask.startDate).format('YYYYMMDD'),
+    endDate: dayjs(newTask.endDate).format('YYYYMMDD'),
     type: 'task',
     status: 'planned',
     progress: 0,
@@ -589,8 +591,8 @@ function handleEditTask(task: PlanningItem) {
   editForm.value = {
     title: task.title,
     description: task.description || '',
-    startDate: dayjs(task.startDate).format('YYYY-MM-DD'),
-    endDate: dayjs(task.endDate).format('YYYY-MM-DD'),
+    startDate: dayjs(task.startDate).format('YYYYMMDD'),
+    endDate: dayjs(task.endDate).format('YYYYMMDD'),
     type: task.type || 'task',
     status: task.status || 'planned',
     progress: task.progress || 0,
@@ -610,11 +612,19 @@ async function handleSaveTask() {
 
     const isNewTask = editingTask.value.id.startsWith('new-')
 
+    // 将 YYYYMMDD 格式转换为 Date
+    function parseDateStr(dateStr: string): Date {
+      const year = parseInt(dateStr.substring(0, 4))
+      const month = parseInt(dateStr.substring(4, 6)) - 1
+      const day = parseInt(dateStr.substring(6, 8))
+      return new Date(year, month, day)
+    }
+
     const taskData = {
       title: editForm.value.title,
       description: editForm.value.description,
-      startDate: new Date(editForm.value.startDate),
-      endDate: new Date(editForm.value.endDate),
+      startDate: parseDateStr(editForm.value.startDate),
+      endDate: parseDateStr(editForm.value.endDate),
       level: 'year',
       status: editForm.value.status,
       progress: editForm.value.progress || 0,
@@ -1291,5 +1301,12 @@ onMounted(async () => {
 .btn-secondary {
   background: white;
   border: 1px solid #d1d5db;
+}
+
+.input-hint {
+  display: block;
+  margin-top: 0.25rem;
+  font-size: 0.75rem;
+  color: #6b7280;
 }
 </style>
