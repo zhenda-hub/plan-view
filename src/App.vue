@@ -23,7 +23,13 @@
         :is="currentViewComponent"
       />
       <!-- 甘特图视图 -->
-      <GanttChart v-else />
+      <JordiumGanttWrapper
+        v-else
+        :items="planningStore.items"
+        @update:item="handleUpdateItem"
+        @add:item="handleAddItem"
+        @delete:item="handleDeleteItem"
+      />
     </main>
 
     <footer class="app-footer">
@@ -37,8 +43,8 @@ import { computed, onMounted, ref } from 'vue'
 import { useViewStore } from '@/stores/view'
 import { usePlanningStore } from '@/stores/planning'
 import TimeHierarchySwitcher from '@/components/timeline/TimeHierarchySwitcher.vue'
-import GanttChart from '@/components/gantt/GanttChart.vue'
-import { TimeLevel, ViewMode } from '@/types/planning'
+import JordiumGanttWrapper from '@/components/gantt/JordiumGanttWrapper.vue'
+import { TimeLevel, ViewMode, PlanningItem } from '@/types/planning'
 
 // Dynamic view imports
 import DecadeView from '@/views/DecadeView.vue'
@@ -69,6 +75,22 @@ const currentViewComponent = computed(() => {
 
 function toggleViewMode() {
   viewMode.value = viewMode.value === ViewMode.GRID ? ViewMode.GANTT : ViewMode.GRID
+}
+
+// 甘特图事件处理
+function handleUpdateItem(item: PlanningItem) {
+  planningStore.updateItem(item.id, item)
+  // TODO: 调用 API 保存到后端
+}
+
+function handleAddItem(item: PlanningItem) {
+  planningStore.addItem(item)
+  // TODO: 调用 API 保存到后端
+}
+
+function handleDeleteItem(item: PlanningItem) {
+  planningStore.deleteItem(item.id)
+  // TODO: 调用 API 删除后端数据
 }
 
 onMounted(() => {

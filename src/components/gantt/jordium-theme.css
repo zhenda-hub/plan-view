@@ -1,0 +1,200 @@
+/**
+ * Jordium Gantt 主题定制
+ * 与现有项目主题保持一致
+ */
+
+/* 主色调 */
+:root {
+  --jg-primary-color: #3b82f6;
+  --jg-success-color: #10b981;
+  --jg-warning-color: #f59e0b;
+  --jg-danger-color: #ef4444;
+  --jg-info-color: #06b6d4;
+
+  /* 今天标记线颜色 */
+  --jg-today-line-color: #ef4444;
+
+  /* 边框颜色 */
+  --jg-border-color: #e5e7eb;
+  --jg-border-hover-color: #d1d5db;
+
+  /* 背景颜色 */
+  --jg-bg-primary: #ffffff;
+  --jg-bg-secondary: #f9fafb;
+  --jg-bg-hover: #f3f4f6;
+
+  /* 文字颜色 */
+  --jg-text-primary: #111827;
+  --jg-text-secondary: #6b7280;
+  --jg-text-muted: #9ca3af;
+}
+
+/* 甘特图容器 */
+.gantt-chart {
+  --primary-color: var(--jg-primary-color);
+  --today-line-color: var(--jg-today-line-color);
+}
+
+/* 任务条样式 */
+.gantt-task-bar {
+  border-radius: 6px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  transition: all 0.2s ease;
+}
+
+.gantt-task-bar:hover {
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.15);
+  transform: translateY(-1px);
+}
+
+/* 里程碑样式 */
+.gantt-milestone {
+  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.1));
+}
+
+.gantt-milestone:hover {
+  filter: drop-shadow(0 4px 8px rgba(0, 0, 0, 0.2));
+}
+
+/* 依赖线样式 */
+.gantt-dependency-line {
+  stroke: var(--jg-text-secondary);
+  stroke-width: 2;
+  opacity: 0.6;
+}
+
+.gantt-dependency-line:hover {
+  stroke: var(--jg-primary-color);
+  opacity: 1;
+  stroke-width: 3;
+}
+
+/* 时间轴样式 */
+.gantt-timeline-header {
+  background-color: var(--jg-bg-secondary);
+  border-bottom: 2px solid var(--jg-border-color);
+  font-weight: 600;
+}
+
+.gantt-timeline-cell {
+  border-right: 1px solid var(--jg-border-color);
+}
+
+.gantt-timeline-cell.today {
+  background-color: rgba(239, 68, 68, 0.1);
+}
+
+/* 任务列表样式 */
+.gantt-task-list {
+  background-color: var(--jg-bg-primary);
+  border-right: 2px solid var(--jg-border-color);
+}
+
+.gantt-task-row {
+  border-bottom: 1px solid var(--jg-border-color);
+  transition: background-color 0.2s ease;
+}
+
+.gantt-task-row:hover {
+  background-color: var(--jg-bg-hover);
+}
+
+.gantt-task-row.selected {
+  background-color: rgba(59, 130, 246, 0.1);
+}
+
+/* 工具栏样式 */
+.gantt-toolbar {
+  background-color: var(--jg-bg-primary);
+  border-bottom: 2px solid var(--jg-border-color);
+  padding: 0.75rem 1rem;
+}
+
+.gantt-toolbar button {
+  border-radius: 6px;
+  font-weight: 500;
+  transition: all 0.2s ease;
+}
+
+.gantt-toolbar button:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+/* 抽屉/对话框样式 */
+.gantt-drawer {
+  border-radius: 8px;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.15);
+}
+
+.gantt-drawer-header {
+  border-bottom: 2px solid var(--jg-border-color);
+  padding: 1rem 1.5rem;
+}
+
+.gantt-drawer-body {
+  padding: 1.5rem;
+}
+
+/* 表单输入样式 */
+.gantt-form-input {
+  border: 2px solid var(--jg-border-color);
+  border-radius: 6px;
+  padding: 0.5rem 0.75rem;
+  transition: border-color 0.2s ease;
+}
+
+.gantt-form-input:focus {
+  border-color: var(--jg-primary-color);
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
+/* 进度条样式 */
+.gantt-progress-bar {
+  background-color: var(--jg-success-color);
+  border-radius: 3px;
+  transition: width 0.3s ease;
+}
+
+/* 右键菜单样式 */
+.gantt-context-menu {
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  border: 1px solid var(--jg-border-color);
+  min-width: 180px;
+}
+
+.gantt-context-menu-item {
+  padding: 0.5rem 1rem;
+  transition: background-color 0.2s ease;
+}
+
+.gantt-context-menu-item:hover {
+  background-color: var(--jg-bg-hover);
+}
+
+/* 响应式调整 */
+@media (max-width: 768px) {
+  .gantt-toolbar {
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+
+  .gantt-task-list {
+    min-width: 150px;
+  }
+}
+
+/* 深色主题支持 */
+@media (prefers-color-scheme: dark) {
+  :root {
+    --jg-bg-primary: #1f2937;
+    --jg-bg-secondary: #111827;
+    --jg-bg-hover: #374151;
+    --jg-border-color: #374151;
+    --jg-text-primary: #f9fafb;
+    --jg-text-secondary: #d1d5db;
+    --jg-text-muted: #9ca3af;
+  }
+}
