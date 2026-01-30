@@ -91,9 +91,9 @@ const taskBarConfig = {
 
 // 任务列表配置 - 减少左侧宽度，增加甘特图显示区域
 const taskListConfig: TaskListConfig = {
-  defaultWidth: 200,  // 减小默认宽度从 320px 到 200px
-  minWidth: 150,      // 最小宽度 150px
-  maxWidth: 400,      // 最大宽度 400px
+  defaultWidth: 150,  // 进一步减小宽度到 150px
+  minWidth: 120,      // 最小宽度 120px
+  maxWidth: 300,      // 最大宽度 300px
   showTaskIcon: true
 }
 
