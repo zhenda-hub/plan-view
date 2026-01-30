@@ -9,6 +9,7 @@
       :locale="locale"
       :theme="theme"
       :task-bar-config="taskBarConfig"
+      :task-list-config="taskListConfig"
       :auto-sort-by-start-date="autoSortByStartDate"
       :assignee-options="assigneeOptions"
       @task-added="handleTaskAdded"
@@ -25,7 +26,7 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
 import { GanttChart } from 'jordium-gantt-vue3'
-import type { Task } from 'jordium-gantt-vue3'
+import type { Task, TaskListConfig } from 'jordium-gantt-vue3'
 import 'jordium-gantt-vue3/dist/assets/jordium-gantt-vue3.css'
 import type { PlanningItem } from '@/types/planning'
 import { toJordiumTask, fromJordiumTask, type JordiumTask } from './taskAdapter'
@@ -88,6 +89,14 @@ const taskBarConfig = {
   showProgress: true
 }
 
+// 任务列表配置 - 减少左侧宽度，增加甘特图显示区域
+const taskListConfig: TaskListConfig = {
+  defaultWidth: 200,  // 减小默认宽度从 320px 到 200px
+  minWidth: 150,      // 最小宽度 150px
+  maxWidth: 400,      // 最大宽度 400px
+  showTaskIcon: true
+}
+
 // 处理任务添加
 function handleTaskAdded(event: { task: Task }) {
   const newItem = fromJordiumTask(event.task as JordiumTask)
@@ -145,6 +154,8 @@ function handleTaskDoubleClick(task: Task) {
   width: 100%;
   height: 100%;
   min-height: 500px;
+  padding: 0;
+  margin: 0;
 }
 
 /* 与现有主题保持一致 */
@@ -156,5 +167,29 @@ function handleTaskDoubleClick(task: Task) {
 /* 确保组件正确渲染 */
 :deep(.gantt-chart) {
   height: 100%;
+  width: 100%;
+}
+
+/* 减少甘特图容器的内边距和边距 */
+:deep(.gantt-container) {
+  padding: 0 !important;
+  margin: 0 !important;
+}
+
+/* 优化时间轴区域布局 */
+:deep(.gantt-timeline) {
+  width: 100%;
+  flex: 1;
+}
+
+/* 减少任务列表的右侧边距 */
+:deep(.gantt-task-list) {
+  margin-right: 0 !important;
+}
+
+/* 优化整体布局，充分利用空间 */
+:deep(.gantt-body) {
+  margin: 0 !important;
+  padding: 0 !important;
 }
 </style>

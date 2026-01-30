@@ -29,6 +29,22 @@ declare module 'jordium-gantt-vue3' {
     dragThreshold?: number
   }
 
+  export interface TaskListColumnConfig {
+    key: string
+    label?: string
+    visible?: boolean
+    width?: number
+  }
+
+  export interface TaskListConfig {
+    columns?: TaskListColumnConfig[]
+    showAllColumns?: boolean
+    defaultWidth?: number | string
+    minWidth?: number | string
+    maxWidth?: number | string
+    showTaskIcon?: boolean
+  }
+
   export const GanttChart: DefineComponent<{
     tasks?: Task[]
     milestones?: Task[]
