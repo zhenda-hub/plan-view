@@ -16,9 +16,9 @@ The application supports the following time levels (from macro to micro):
 | 5-year | Strategic planning | - |
 | 3-year | Medium-term milestones | - |
 | 1-year | Annual planning | - |
-| Quarterly | Quarterly breakdown | 4 quarters, 13 weeks each |
-| Monthly | Monthly breakdown | 2 months pattern, 13 units |
-| Weekly | Weekly detail | 1 week pattern, 20 units |
+| Quarterly | Quarterly breakdown | - |
+| Monthly | Monthly breakdown | - |
+| Weekly | Weekly detail | - |
 
 ## Proposed Technical Solutions
 
